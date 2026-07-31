@@ -14,7 +14,8 @@
     "build": "npm run build:backend && vite build && npm run build:electron",
     "start": "electron .",
     "pack": "node scripts/pack.mjs",
-    "dist": "npm run build && electron-builder --win --x64"
+    "dist": "npm run build && electron-builder --win --x64",
+    "dist:setup": "node scripts/build-installer.mjs"
   },
   "dependencies": {},
   "devDependencies": {
@@ -33,9 +34,9 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.danielsantos.limpezadrivers",
-    "productName": "Limpeza e Drivers",
-    "directories": { "output": "release" },
+    "appId": "com.danielsantos.nexusclean",
+    "productName": "NexusClean",
+    "directories": { "output": "C:/Users/dhani/NexusClean-App/installer" },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
@@ -58,15 +59,22 @@
     ],
     "win": {
       "target": ["nsis"],
+      "icon": "build/app.ico",
       "requestedExecutionLevel": "requireAdministrator",
-      "signAndEditExecutable": true,
-      "signingHashAlgorithms": ["sha256"]
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
       "perMachine": true,
       "allowElevation": true,
-      "createDesktopShortcut": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NexusClean",
+      "installerIcon": "build/app.ico",
+      "uninstallerIcon": "build/app.ico",
+      "installerHeaderIcon": "build/app.ico",
+      "artifactName": "NexusClean-Setup-${version}.${ext}"
     }
   }
 }

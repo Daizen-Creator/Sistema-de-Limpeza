@@ -5,6 +5,7 @@ release/
 build/
 java-backend/out/
 tools/*.class
+tools/*.exe
 *.log
 .DS_Store
 

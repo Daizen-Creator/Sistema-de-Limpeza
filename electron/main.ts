@@ -92,10 +92,51 @@ function showWindow() {
   }
 }
 
+let notifIcon: Electron.NativeImage | null = null;
 function notify(title: string, body: string) {
   try {
-    if (Notification.isSupported()) new Notification({ title, body }).show();
+    if (!Notification.isSupported()) return;
+    if (notifIcon === null) {
+      const i = nativeImage.createFromPath(iconPath());
+      notifIcon = i.isEmpty() ? nativeImage.createEmpty() : i;
+    }
+    new Notification({
+      title,
+      body,
+      icon: notifIcon.isEmpty() ? undefined : notifIcon,
+      timeoutType: "default",
+    }).show();
   } catch {}
+}
+
+/** Consulta o GitHub por uma versao mais nova. Reutilizado pelo IPC e pela bandeja. */
+async function checkForUpdate() {
+  const current = app.getVersion();
+  const repo = "Daizen-Creator/Sistema-de-Limpeza";
+  const headers = { "User-Agent": "NexusClean-Updater", Accept: "application/vnd.github+json" };
+  try {
+    let latest: string | null = null;
+    let url = `https://github.com/${repo}/releases`;
+    const r = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers });
+    if (r.ok) {
+      const j: any = await r.json();
+      latest = String(j.tag_name ?? "").replace(/^v/i, "") || null;
+      url = j.html_url ?? url;
+    } else if (r.status === 404) {
+      const t = await fetch(`https://api.github.com/repos/${repo}/tags`, { headers });
+      if (t.ok) {
+        const arr: any = await t.json();
+        if (Array.isArray(arr) && arr.length) {
+          latest = String(arr[0].name ?? "").replace(/^v/i, "") || null;
+          url = `https://github.com/${repo}`;
+        }
+      }
+    }
+    const hasUpdate = latest ? isNewer(latest, current) : false;
+    return { ok: true, current, latest, hasUpdate, url };
+  } catch {
+    return { ok: false, current, message: "Sem conexao ou repositorio indisponivel." };
+  }
 }
 
 function mb(bytes: number): string {
@@ -120,21 +161,39 @@ async function quickCleanTray() {
   }
 }
 
+async function checkUpdatesTray() {
+  notify("NexusClean", "Verificando atualizacoes...");
+  const r = await checkForUpdate();
+  if (r.ok && r.hasUpdate) {
+    notify("🚀 Atualizacao disponivel", `Nova versao ${r.latest}! Clique para baixar.`);
+    if (r.url) shell.openExternal(r.url);
+  } else if (r.ok) {
+    notify("NexusClean", `Voce esta na versao mais recente (v${r.current}).`);
+  } else {
+    notify("NexusClean", "Nao foi possivel verificar agora.");
+  }
+}
+
 function buildTrayMenu() {
+  let header = nativeImage.createFromPath(iconPath());
+  header = header.isEmpty() ? nativeImage.createEmpty() : header.resize({ width: 16, height: 16 });
   return Menu.buildFromTemplate([
-    { label: "Abrir NexusClean", click: () => showWindow() },
+    { label: `NexusClean  ·  v${app.getVersion()}`, icon: header.isEmpty() ? undefined : header, enabled: false },
     { type: "separator" },
-    { label: "⚡ Ativar Turbo FPS", click: () => runSilent("optimize", "", "Turbo FPS aplicado.") },
-    { label: "🧹 Limpar temporarios", click: () => quickCleanTray() },
+    { label: "Abrir painel", click: () => showWindow() },
+    { type: "separator" },
+    { label: "⚡  Ativar Turbo FPS", click: () => runSilent("optimize", "", "Turbo FPS aplicado com sucesso.") },
+    { label: "🧹  Limpar temporarios", click: () => quickCleanTray() },
     {
-      label: "🎮 Trocar perfil",
+      label: "🎮  Trocar perfil",
       submenu: [
-        { label: "Modo Game", click: () => runSilent("profile", "game", "Modo Game ativado.") },
-        { label: "Modo Trabalho", click: () => runSilent("profile", "work", "Modo Trabalho ativado.") },
-        { label: "Modo Economia", click: () => runSilent("profile", "battery", "Modo Economia ativado.") },
+        { label: "🎮  Modo Game", click: () => runSilent("profile", "game", "Modo Game ativado. Bom jogo!") },
+        { label: "💼  Modo Trabalho", click: () => runSilent("profile", "work", "Modo Trabalho ativado.") },
+        { label: "🔋  Modo Economia", click: () => runSilent("profile", "battery", "Modo Economia ativado.") },
       ],
     },
     { type: "separator" },
+    { label: "🔄  Verificar atualizacoes", click: () => checkUpdatesTray() },
     { label: "Sair", click: () => { isQuitting = true; app.quit(); } },
   ]);
 }
@@ -144,9 +203,10 @@ function createTray() {
   let img = nativeImage.createFromPath(iconPath());
   if (img.isEmpty()) img = nativeImage.createEmpty();
   tray = new Tray(img);
-  tray.setToolTip("NexusClean — Otimizador do Windows");
+  tray.setToolTip("NexusClean — Otimizador do Windows · por Daniel Santos Ciriaco");
   tray.setContextMenu(buildTrayMenu());
   tray.on("double-click", () => showWindow());
+  tray.on("click", () => showWindow());
 }
 
 function createSplash() {
@@ -419,34 +479,7 @@ function registerIpc() {
   );
   ipcMain.handle("disk:smart", () => callBackend("GET", "/api/disk/smart"));
   // --- auto-updater (modulo 19) ---
-  ipcMain.handle("updater:check", async () => {
-    const current = app.getVersion();
-    const repo = "Daizen-Creator/Sistema-de-Limpeza";
-    const headers = { "User-Agent": "NexusClean-Updater", Accept: "application/vnd.github+json" };
-    try {
-      let latest: string | null = null;
-      let url = `https://github.com/${repo}/releases`;
-      const r = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers });
-      if (r.ok) {
-        const j: any = await r.json();
-        latest = String(j.tag_name ?? "").replace(/^v/i, "") || null;
-        url = j.html_url ?? url;
-      } else if (r.status === 404) {
-        const t = await fetch(`https://api.github.com/repos/${repo}/tags`, { headers });
-        if (t.ok) {
-          const arr: any = await t.json();
-          if (Array.isArray(arr) && arr.length) {
-            latest = String(arr[0].name ?? "").replace(/^v/i, "") || null;
-            url = `https://github.com/${repo}`;
-          }
-        }
-      }
-      const hasUpdate = latest ? isNewer(latest, current) : false;
-      return { ok: true, current, latest, hasUpdate, url };
-    } catch {
-      return { ok: false, current, message: "Sem conexao ou repositorio indisponivel." };
-    }
-  });
+  ipcMain.handle("updater:check", () => checkForUpdate());
   ipcMain.handle("updater:open", (_e, url: string) => {
     if (typeof url === "string" && /^https:\/\/github\.com\//.test(url)) shell.openExternal(url);
     return { ok: true };
@@ -510,11 +543,7 @@ function registerIpc() {
 
   // --- notificacoes nativas + log de eventos (modulo 16) ---
   ipcMain.handle("notify:show", (_e, p: { title: string; body: string }) => {
-    try {
-      if (Notification.isSupported()) {
-        new Notification({ title: p.title, body: p.body }).show();
-      }
-    } catch {}
+    notify(p.title, p.body);
     return { ok: true };
   });
 
