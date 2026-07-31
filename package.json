@@ -1,0 +1,72 @@
+{
+  "name": "limpeza-drivers",
+  "version": "1.0.0",
+  "description": "Sistema seguro de limpeza e atualizacao de drivers via Windows Update (drivers assinados/WHQL).",
+  "author": "Daniel Santos Ciriaco",
+  "license": "MIT",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "build:backend": "node scripts/build-backend.mjs",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "dev:vite": "vite",
+    "dev:app": "wait-on tcp:5173 && npm run build:electron && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "dev": "npm run build:backend && concurrently -k -n VITE,APP -c cyan,green \"npm:dev:vite\" \"npm:dev:app\"",
+    "build": "npm run build:backend && vite build && npm run build:electron",
+    "start": "electron .",
+    "pack": "node scripts/pack.mjs",
+    "dist": "npm run build && electron-builder --win --x64"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.danielsantos.limpezadrivers",
+    "productName": "Limpeza e Drivers",
+    "directories": { "output": "release" },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "build/backend.jar"
+    ],
+    "extraResources": [
+      { "from": "build/backend.jar", "to": "backend.jar" },
+      { "from": "build/app.ico", "to": "app.ico" },
+      { "from": "electron/auto-update.ps1", "to": "auto-update.ps1" },
+      { "from": "electron/optimize.ps1", "to": "optimize.ps1" },
+      { "from": "electron/hacker-scan.ps1", "to": "hacker-scan.ps1" },
+      { "from": "electron/advanced-opt.ps1", "to": "advanced-opt.ps1" },
+      { "from": "electron/scheduled-clean.ps1", "to": "scheduled-clean.ps1" },
+      { "from": "electron/sfc.ps1", "to": "sfc.ps1" },
+      { "from": "electron/backup.ps1", "to": "backup.ps1" },
+      { "from": "electron/profile.ps1", "to": "profile.ps1" },
+      { "from": "electron/restore-point.ps1", "to": "restore-point.ps1" },
+      { "from": "electron/revert.ps1", "to": "revert.ps1" },
+      { "from": "electron/trace.ps1", "to": "trace.ps1" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": true,
+      "signingHashAlgorithms": ["sha256"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true
+    }
+  }
+}
