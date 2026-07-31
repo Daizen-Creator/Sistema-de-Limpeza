@@ -7,3 +7,5 @@ java-backend/out/
 tools/*.class
 *.log
 .DS_Store
+
+.claude/
