@@ -1,4 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, Notification, Tray, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage, screen } from "electron";
+import { trayMenuHtml } from "./tray-menu";
+import { toastHtml } from "./toast";
 import { spawn, execFileSync, ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
@@ -92,20 +94,47 @@ function showWindow() {
   }
 }
 
-let notifIcon: Electron.NativeImage | null = null;
+let iconDataUrl = "";
+function getIconDataUrl(): string {
+  if (!iconDataUrl) {
+    const i = nativeImage.createFromPath(iconPath());
+    iconDataUrl = i.isEmpty() ? "" : i.toDataURL();
+  }
+  return iconDataUrl;
+}
+
+// --- notificacoes customizadas (toast tema hacker) ---
+const toastWins: BrowserWindow[] = [];
+const TW = 340, TH = 96, TGAP = 10;
+
+function positionToasts() {
+  const wa = screen.getPrimaryDisplay().workArea;
+  toastWins.forEach((w, i) => {
+    if (w.isDestroyed()) return;
+    w.setPosition(wa.x + wa.width - TW - 16, wa.y + wa.height - (TH + TGAP) * (i + 1) - 8);
+  });
+}
+
 function notify(title: string, body: string) {
   try {
-    if (!Notification.isSupported()) return;
-    if (notifIcon === null) {
-      const i = nativeImage.createFromPath(iconPath());
-      notifIcon = i.isEmpty() ? nativeImage.createEmpty() : i;
-    }
-    new Notification({
-      title,
-      body,
-      icon: notifIcon.isEmpty() ? undefined : notifIcon,
-      timeoutType: "default",
-    }).show();
+    const win = new BrowserWindow({
+      width: TW, height: TH, frame: false, transparent: true, resizable: false,
+      movable: false, skipTaskbar: true, alwaysOnTop: true, focusable: false,
+      show: false, hasShadow: false,
+      webPreferences: { contextIsolation: true, nodeIntegration: false },
+    });
+    toastWins.push(win);
+    win.setAlwaysOnTop(true, "screen-saver");
+    positionToasts();
+    win.loadURL(toastHtml(title, body, getIconDataUrl()));
+    win.once("ready-to-show", () => win.showInactive());
+    const timer = setTimeout(() => { if (!win.isDestroyed()) win.close(); }, 5600);
+    win.on("closed", () => {
+      clearTimeout(timer);
+      const idx = toastWins.indexOf(win);
+      if (idx >= 0) toastWins.splice(idx, 1);
+      positionToasts();
+    });
   } catch {}
 }
 
@@ -174,28 +203,47 @@ async function checkUpdatesTray() {
   }
 }
 
-function buildTrayMenu() {
-  let header = nativeImage.createFromPath(iconPath());
-  header = header.isEmpty() ? nativeImage.createEmpty() : header.resize({ width: 16, height: 16 });
-  return Menu.buildFromTemplate([
-    { label: `NexusClean  ·  v${app.getVersion()}`, icon: header.isEmpty() ? undefined : header, enabled: false },
-    { type: "separator" },
-    { label: "Abrir painel", click: () => showWindow() },
-    { type: "separator" },
-    { label: "⚡  Ativar Turbo FPS", click: () => runSilent("optimize", "", "Turbo FPS aplicado com sucesso.") },
-    { label: "🧹  Limpar temporarios", click: () => quickCleanTray() },
-    {
-      label: "🎮  Trocar perfil",
-      submenu: [
-        { label: "🎮  Modo Game", click: () => runSilent("profile", "game", "Modo Game ativado. Bom jogo!") },
-        { label: "💼  Modo Trabalho", click: () => runSilent("profile", "work", "Modo Trabalho ativado.") },
-        { label: "🔋  Modo Economia", click: () => runSilent("profile", "battery", "Modo Economia ativado.") },
-      ],
-    },
-    { type: "separator" },
-    { label: "🔄  Verificar atualizacoes", click: () => checkUpdatesTray() },
-    { label: "Sair", click: () => { isQuitting = true; app.quit(); } },
-  ]);
+// --- menu de bandeja CUSTOMIZADO (janela HTML tema hacker, estilo Steam) ---
+let trayMenuWin: BrowserWindow | null = null;
+
+function closeTrayMenu() {
+  if (trayMenuWin && !trayMenuWin.isDestroyed()) trayMenuWin.close();
+  trayMenuWin = null;
+}
+
+function showTrayMenu() {
+  if (trayMenuWin && !trayMenuWin.isDestroyed()) { closeTrayMenu(); return; }
+  const W = 246, H = 372;
+  const pt = screen.getCursorScreenPoint();
+  const wa = screen.getDisplayNearestPoint(pt).workArea;
+  let x = pt.x - W + 12;
+  let y = pt.y - H - 6;
+  x = Math.max(wa.x + 4, Math.min(x, wa.x + wa.width - W - 4));
+  y = Math.max(wa.y + 4, Math.min(y, wa.y + wa.height - H - 4));
+  trayMenuWin = new BrowserWindow({
+    width: W, height: H, x, y, frame: false, transparent: true, resizable: false,
+    skipTaskbar: true, alwaysOnTop: true, show: false, hasShadow: false,
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false },
+  });
+  trayMenuWin.setAlwaysOnTop(true, "screen-saver");
+  trayMenuWin.loadURL(trayMenuHtml(getIconDataUrl(), app.getVersion()));
+  trayMenuWin.once("ready-to-show", () => { trayMenuWin?.show(); trayMenuWin?.focus(); });
+  trayMenuWin.on("blur", () => closeTrayMenu());
+  trayMenuWin.on("closed", () => { trayMenuWin = null; });
+}
+
+function handleTrayAction(id: string) {
+  closeTrayMenu();
+  switch (id) {
+    case "open": showWindow(); break;
+    case "turbo": runSilent("optimize", "", "Turbo FPS aplicado com sucesso."); break;
+    case "clean": quickCleanTray(); break;
+    case "prof-game": runSilent("profile", "game", "Modo Game ativado. Bom jogo!"); break;
+    case "prof-work": runSilent("profile", "work", "Modo Trabalho ativado."); break;
+    case "prof-battery": runSilent("profile", "battery", "Modo Economia ativado."); break;
+    case "update": checkUpdatesTray(); break;
+    case "quit": isQuitting = true; app.quit(); break;
+  }
 }
 
 function createTray() {
@@ -204,9 +252,8 @@ function createTray() {
   if (img.isEmpty()) img = nativeImage.createEmpty();
   tray = new Tray(img);
   tray.setToolTip("NexusClean — Otimizador do Windows · por Daniel Santos Ciriaco");
-  tray.setContextMenu(buildTrayMenu());
-  tray.on("double-click", () => showWindow());
   tray.on("click", () => showWindow());
+  tray.on("right-click", () => showTrayMenu());
 }
 
 function createSplash() {
@@ -546,6 +593,7 @@ function registerIpc() {
     notify(p.title, p.body);
     return { ok: true };
   });
+  ipcMain.on("tray:action", (_e, id: string) => handleTrayAction(id));
 
   const logPath = () => path.join(app.getPath("userData"), "events.json");
   const readLog = (): any[] => {

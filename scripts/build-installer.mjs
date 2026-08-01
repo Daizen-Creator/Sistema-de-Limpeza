@@ -27,8 +27,8 @@ run("npx", ["electron-builder", "--win", "--dir"]);
 if (existsSync(rcedit) && existsSync(ico) && existsSync(unpacked)) {
   run(rcedit, [`"${unpacked}"`, "--set-icon", `"${ico}"`]);
   run(rcedit, [`"${unpacked}"`, "--set-version-string", "ProductName", "NexusClean",
-    "--set-version-string", "CompanyName", "Daniel Santos Ciriaco",
-    "--set-version-string", "FileDescription", "NexusClean - Otimizador do Windows"]);
+    "--set-version-string", "CompanyName", `"Daniel Santos Ciriaco"`,
+    "--set-version-string", "FileDescription", `"NexusClean - Otimizador do Windows"`]);
 } else {
   console.warn("Aviso: rcedit ou icone nao encontrados; executavel ficara com o icone padrao.");
 }

@@ -21,6 +21,9 @@ const api = {
   procPriority: (pid: number, level: string) => ipcRenderer.invoke("proc:priority", { pid, level }),
   netStats: () => ipcRenderer.invoke("net:stats"),
 
+  // --- menu de bandeja customizado ---
+  trayAction: (id: string) => ipcRenderer.send("tray:action", id),
+
   // --- controles da janela ---
   winMinimize: () => ipcRenderer.invoke("win:minimize"),
   winMaximize: () => ipcRenderer.invoke("win:maximize"),
