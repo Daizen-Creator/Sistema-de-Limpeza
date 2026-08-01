@@ -6,6 +6,9 @@ build/
 java-backend/out/
 tools/*.class
 tools/*.exe
+
+# Capas de jogos (imagens de terceiros) — usadas so localmente, nao redistribuir
+public/games/
 *.log
 .DS_Store
 

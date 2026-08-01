@@ -47,7 +47,7 @@ public class Backend {
 
         Backend app = new Backend(token);
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
-        server.setExecutor(Executors.newFixedThreadPool(4));
+        server.setExecutor(Executors.newFixedThreadPool(10));
 
         server.createContext("/api/health", app::handleHealth);
         server.createContext("/api/system/info", app.secured(app::handleSystemInfo));

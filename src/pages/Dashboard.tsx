@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import type { SystemInfo, HardwareInfo, NetStats } from "../../electron/types";
 import { formatBytes, pct } from "../lib/format";
 
@@ -16,24 +17,20 @@ export default function Dashboard({
 
   useEffect(() => {
     api.hwInfo().then((r) => setHw(r.data)).catch(() => {});
-    const poll = async () => {
-      try {
-        const r = await api.netStats();
-        const now = Date.now();
-        const s: NetStats = r.data;
-        if (lastNet.current) {
-          const dt = (now - lastNet.current.t) / 1000;
-          const down = ((s.rxBytes - lastNet.current.rx) * 8) / 1e6 / dt; // Mbps
-          const up = ((s.txBytes - lastNet.current.tx) * 8) / 1e6 / dt;
-          setNet({ down: Math.max(0, down), up: Math.max(0, up), ping: s.pingGoogle });
-        }
-        lastNet.current = { rx: s.rxBytes, tx: s.txBytes, t: now };
-      } catch {}
-    };
-    poll();
-    const id = setInterval(poll, 1500);
-    return () => clearInterval(id);
   }, []);
+
+  usePoll(async () => {
+    const r = await api.netStats();
+    const now = Date.now();
+    const s: NetStats = r.data;
+    if (lastNet.current) {
+      const dt = (now - lastNet.current.t) / 1000;
+      const down = ((s.rxBytes - lastNet.current.rx) * 8) / 1e6 / dt; // Mbps
+      const up = ((s.txBytes - lastNet.current.tx) * 8) / 1e6 / dt;
+      setNet({ down: Math.max(0, down), up: Math.max(0, up), ping: s.pingGoogle });
+    }
+    lastNet.current = { rx: s.rxBytes, tx: s.txBytes, t: now };
+  }, 2000);
 
   const ramUsed = hw ? hw.ramTotalBytes - hw.ramFreeBytes : 0;
 

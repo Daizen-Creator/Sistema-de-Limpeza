@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import type { NetProc, PingResult } from "../../electron/types";
 import MatrixConsole from "../components/MatrixConsole";
 
@@ -15,12 +16,9 @@ export default function Network() {
     const r = await api.netProcesses();
     setProcs(r.data ?? []);
   }
-  useEffect(() => {
-    loadProcs();
-    if (!auto) return;
-    const id = setInterval(loadProcs, 4000);
-    return () => clearInterval(id);
-  }, [auto]);
+  usePoll(async () => {
+    if (auto) await loadProcs();
+  }, 4500, [auto]);
 
   const cleanHost = () => host.trim().replace(/[^A-Za-z0-9.\-]/g, "");
 

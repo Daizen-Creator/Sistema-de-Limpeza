@@ -70,10 +70,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
+      "menuCategory": "NexusClean",
       "shortcutName": "NexusClean",
       "installerIcon": "build/app.ico",
       "uninstallerIcon": "build/app.ico",
       "installerHeaderIcon": "build/app.ico",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "uninstallerSidebar": "build/installer-sidebar.bmp",
+      "installerHeader": "build/installer-header.bmp",
       "artifactName": "NexusClean-Setup-${version}.${ext}"
     }
   }

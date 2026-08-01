@@ -21,6 +21,15 @@ function run(cmd, args) {
 
 // 1) build (backend + react + electron) e empacota so a pasta (win-unpacked)
 run("npm", ["run", "build"]);
+
+// 1b) gera as imagens do instalador (banner lateral + cabecalho)
+try {
+  run("javac", ["-d", "tools", "tools/SidebarGen.java"]);
+  run("java", ["-cp", "tools", "SidebarGen"]);
+} catch (e) {
+  console.warn("Aviso: nao foi possivel gerar as imagens do instalador:", e.message);
+}
+
 run("npx", ["electron-builder", "--win", "--dir"]);
 
 // 2) aplica icone + metadados no executavel interno (o electron-builder pulou isso)

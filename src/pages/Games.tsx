@@ -116,7 +116,13 @@ export default function Games() {
               className="game-cover"
               style={{ background: `radial-gradient(120% 120% at 30% 20%, ${game.color}, #04160b 80%)` }}
             >
-              <span className="game-cover-ico">{game.icon}</span>
+              <img
+                className="game-cover-img"
+                src={`./${game.img}`}
+                alt={game.name}
+                loading="lazy"
+                onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+              />
               <span className={`badge-run ${res.verdict}`}>{res.label}</span>
               <span className="game-cover-name">{game.name}</span>
             </div>

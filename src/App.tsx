@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, isNative } from "./lib/api";
+import { usePoll } from "./lib/usePoll";
 import type { SystemInfo } from "../electron/types";
 import Dashboard from "./pages/Dashboard";
 import Cleaner from "./pages/Cleaner";
@@ -66,40 +67,28 @@ export default function App() {
   }
 
   // --- monitor global de alertas (modulo 16) ---
-  useEffect(() => {
-    const lastNotified: Record<string, number> = {};
+  const lastNotified = useRef<Record<string, number>>({});
+  usePoll(async () => {
     const COOLDOWN = 5 * 60 * 1000; // 5 min entre alertas do mesmo tipo
-
-    function fire(key: string, title: string, body: string) {
+    const fire = (key: string, title: string, body: string) => {
       const now = Date.now();
-      if (lastNotified[key] && now - lastNotified[key] < COOLDOWN) return;
-      lastNotified[key] = now;
+      if (lastNotified.current[key] && now - lastNotified.current[key] < COOLDOWN) return;
+      lastNotified.current[key] = now;
       api.notify(title, body);
       api.logAdd("alerta", body);
+    };
+    const { data: hw } = await api.hwInfo();
+    if (!hw) return;
+    if (hw.cpuTempC != null && hw.cpuTempC > 85)
+      fire("temp", "🌡️ Temperatura crítica", `CPU em ${hw.cpuTempC}°C (limite 85°C).`);
+    const ramFree = (hw.ramFreeBytes / hw.ramTotalBytes) * 100;
+    if (ramFree < 10) fire("ram", "📊 Memória baixa", `Apenas ${ramFree.toFixed(0)}% de RAM livre.`);
+    const vol = hw.volumes?.[0];
+    if (vol) {
+      const diskFree = (vol.freeBytes / vol.totalBytes) * 100;
+      if (diskFree < 5) fire("disk", "💽 Disco cheio", `${vol.drive} com apenas ${diskFree.toFixed(0)}% livre.`);
     }
-
-    async function check() {
-      try {
-        const { data: hw } = await api.hwInfo();
-        if (!hw) return;
-        if (hw.cpuTempC != null && hw.cpuTempC > 85)
-          fire("temp", "🌡️ Temperatura crítica", `CPU em ${hw.cpuTempC}°C (limite 85°C).`);
-        const ramFree = (hw.ramFreeBytes / hw.ramTotalBytes) * 100;
-        if (ramFree < 10)
-          fire("ram", "📊 Memória baixa", `Apenas ${ramFree.toFixed(0)}% de RAM livre.`);
-        const vol = hw.volumes?.[0];
-        if (vol) {
-          const diskFree = (vol.freeBytes / vol.totalBytes) * 100;
-          if (diskFree < 5)
-            fire("disk", "💽 Disco cheio", `${vol.drive} com apenas ${diskFree.toFixed(0)}% livre.`);
-        }
-      } catch {}
-    }
-
-    check();
-    const id = setInterval(check, 15000);
-    return () => clearInterval(id);
-  }, []);
+  }, 20000);
 
   return (
     <>

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import type { EventLog, HardwareInfo } from "../../electron/types";
 import { formatBytes, pct } from "../lib/format";
 
@@ -8,14 +9,11 @@ export default function Alerts() {
   const [log, setLog] = useState<EventLog[]>([]);
 
   async function refresh() {
-    api.hwInfo().then((r) => setHw(r.data)).catch(() => {});
-    api.logList().then((r) => setLog(r.data ?? [])).catch(() => {});
+    const [hwR, logR] = await Promise.all([api.hwInfo(), api.logList()]);
+    setHw(hwR.data);
+    setLog(logR.data ?? []);
   }
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, 5000);
-    return () => clearInterval(id);
-  }, []);
+  usePoll(refresh, 5000);
 
   const ramFreePct = hw ? (hw.ramFreeBytes / hw.ramTotalBytes) * 100 : 100;
   const mainVol = hw?.volumes?.[0];

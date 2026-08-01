@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import type { SensorData } from "../../electron/types";
 
 export default function Sensors() {
   const [d, setD] = useState<SensorData | null>(null);
 
-  useEffect(() => {
-    const load = () => api.sensors().then((r) => r.data && setD(r.data)).catch(() => {});
-    load();
-    const id = setInterval(load, 2000);
-    return () => clearInterval(id);
-  }, []);
+  usePoll(async () => {
+    const r = await api.sensors();
+    if (r.data) setD(r.data);
+  }, 2500);
 
   const loadColor = (l: number) => (l >= 80 ? "var(--danger)" : l >= 50 ? "var(--warn)" : "var(--accent)");
 

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api";
+import { usePoll } from "../lib/usePoll";
 import type { ProcInfo } from "../../electron/types";
 
 const LEVELS = [
@@ -24,12 +25,9 @@ export default function Processes() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-    if (!auto) return;
-    const id = setInterval(load, 3000);
-    return () => clearInterval(id);
-  }, [auto]);
+  usePoll(async () => {
+    if (auto) await load();
+  }, 3500, [auto]);
 
   async function kill(p: ProcInfo) {
     if (!confirm(`Encerrar "${p.name}" (PID ${p.pid})?\n\nProcessos do sistema podem causar instabilidade.`)) return;
