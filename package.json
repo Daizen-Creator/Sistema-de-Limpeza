@@ -15,7 +15,8 @@
     "start": "electron .",
     "pack": "node scripts/pack.mjs",
     "dist": "npm run build && electron-builder --win --x64",
-    "dist:setup": "node scripts/build-installer.mjs"
+    "dist:setup": "node scripts/build-installer.mjs",
+    "publish": "electron-builder --win nsis --prepackaged \"C:/Users/dhani/NexusClean-App/installer/win-unpacked\" --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
