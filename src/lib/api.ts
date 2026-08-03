@@ -157,6 +157,7 @@ const mock: ApiShape = {
     return { ok: true, current: "1.0.0", latest: "1.0.0", hasUpdate: false, url: "https://github.com/Daizen-Creator/Sistema-de-Limpeza/releases" };
   },
   async updaterOpen() { return { ok: true }; },
+  async updaterDownload() { /* demo */ },
 
   async reportSave() {
     return { ok: false, message: "Modo demonstracao: gerar relatorio so no app instalado." };

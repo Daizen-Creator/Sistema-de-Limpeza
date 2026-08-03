@@ -90,6 +90,7 @@ export interface ApiShape {
 
   updaterCheck(): Promise<UpdateCheck>;
   updaterOpen(url: string): Promise<{ ok: boolean }>;
+  updaterDownload(): Promise<void>;
 
   reportSave(html: string, format: "pdf" | "html"): Promise<{ ok: boolean; path?: string; message?: string }>;
 

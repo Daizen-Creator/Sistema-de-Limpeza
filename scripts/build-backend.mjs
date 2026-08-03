@@ -28,6 +28,24 @@ try {
   run("jar", ["--create", "--file", jar, "--main-class", "app.backend.Backend", "-C", outDir, "."]);
 
   console.log("\n✅ Backend compilado em build/backend.jar");
+
+  // Gera um JRE minimo EMBUTIDO (via jlink) para o app rodar em qualquer PC
+  // sem Java instalado. Cacheia: so refaz se nao existir.
+  const jreDir = join(buildDir, "jre");
+  if (!existsSync(join(jreDir, "bin", "java.exe"))) {
+    try {
+      console.log("\n> gerando JRE embutido (jlink)...");
+      if (existsSync(jreDir)) rmSync(jreDir, { recursive: true, force: true });
+      run("jlink", ["--add-modules", "java.base,jdk.httpserver", "--output", jreDir,
+        "--strip-debug", "--no-header-files", "--no-man-pages", "--compress=zip-6"]);
+      console.log("✅ JRE embutido gerado em build/jre");
+    } catch (e) {
+      console.warn("⚠ Nao foi possivel gerar o JRE embutido (jlink):", e.message);
+      console.warn("  O app dependera do Java instalado no PC do usuario.");
+    }
+  } else {
+    console.log("✅ JRE embutido ja existe (build/jre)");
+  }
 } catch (err) {
   console.error("\n❌ Falha ao compilar o backend Java.");
   console.error("   Verifique se o JDK (java/javac) esta instalado e no PATH.");

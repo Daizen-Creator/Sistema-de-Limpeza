@@ -97,7 +97,7 @@ export default function App() {
       <div className="update-banner">
         <span>🚀 Nova versao <b>{update.latest}</b> disponivel! (voce tem a {update.current})</span>
         <div className="ub-actions">
-          <button className="btn-mini" onClick={() => update.url && api.updaterOpen(update.url)}>Baixar</button>
+          <button className="btn-mini" onClick={() => api.updaterDownload()}>Baixar e instalar</button>
           <button className="ub-close" onClick={() => setBanner(false)}>✕</button>
         </div>
       </div>

@@ -1,6 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage, screen } from "electron";
 import { trayMenuHtml } from "./tray-menu";
 import { toastHtml } from "./toast";
+import { updateWindowHtml } from "./update-window";
+// electron-updater e CommonJS — import=require garante pegar o autoUpdater em runtime
+import electronUpdaterPkg = require("electron-updater");
+const autoUpdater: any = electronUpdaterPkg.autoUpdater ?? electronUpdaterPkg;
 import { spawn, execFileSync, ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
@@ -190,17 +194,71 @@ async function quickCleanTray() {
   }
 }
 
-async function checkUpdatesTray() {
-  notify("NexusClean", "Verificando atualizacoes...");
-  const r = await checkForUpdate();
-  if (r.ok && r.hasUpdate) {
-    notify("🚀 Atualizacao disponivel", `Nova versao ${r.latest}! Clique para baixar.`);
-    if (r.url) shell.openExternal(r.url);
-  } else if (r.ok) {
-    notify("NexusClean", `Voce esta na versao mais recente (v${r.current}).`);
-  } else {
-    notify("NexusClean", "Nao foi possivel verificar agora.");
+// --- AUTO-UPDATE (electron-updater): baixa e instala a nova versao sozinho ---
+let updateWin: BrowserWindow | null = null;
+
+function showUpdateWindow() {
+  if (updateWin && !updateWin.isDestroyed()) return;
+  updateWin = new BrowserWindow({
+    width: 460, height: 380, frame: false, transparent: true, resizable: false,
+    center: true, alwaysOnTop: true, show: false, hasShadow: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  updateWin.loadURL(updateWindowHtml);
+  updateWin.once("ready-to-show", () => updateWin?.show());
+  updateWin.on("closed", () => { updateWin = null; });
+}
+
+function setUpdateProgress(pct: number, status: string) {
+  if (updateWin && !updateWin.isDestroyed()) {
+    updateWin.webContents
+      .executeJavaScript(`window.setProgress && window.setProgress(${pct}, ${JSON.stringify(status)})`)
+      .catch(() => {});
   }
+}
+
+let updaterReady = false;
+function setupAutoUpdater() {
+  if (isDev || updaterReady) return;
+  updaterReady = true;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-available", (info: any) => {
+    showUpdateWindow();
+    setUpdateProgress(-1, `Baixando versao ${info?.version ?? ""}...`);
+  });
+  autoUpdater.on("download-progress", (p: any) => {
+    setUpdateProgress(p?.percent ?? -1, `Baixando atualizacao... ${Math.round(p?.percent ?? 0)}%`);
+  });
+  autoUpdater.on("update-downloaded", () => {
+    setUpdateProgress(100, "Instalando... o app vai reiniciar");
+    setTimeout(() => { isQuitting = true; try { autoUpdater.quitAndInstall(true, true); } catch {} }, 1400);
+  });
+  autoUpdater.on("error", () => {
+    if (updateWin) { setUpdateProgress(-1, "Falha ao atualizar"); setTimeout(() => updateWin?.close(), 2500); }
+  });
+}
+
+/** Verifica e, se houver atualizacao, baixa/instala automaticamente. */
+async function triggerUpdateCheck(announce: boolean) {
+  if (isDev) { if (announce) notify("NexusClean", "Atualizacoes so no app instalado."); return; }
+  setupAutoUpdater();
+  if (announce) notify("NexusClean", "Verificando atualizacoes...");
+  try {
+    const r: any = await autoUpdater.checkForUpdates();
+    const latest = r?.updateInfo?.version;
+    if (latest && isNewer(latest, app.getVersion())) {
+      // update-available cuidara do download + tela
+    } else if (announce) {
+      notify("NexusClean", `Voce esta na versao mais recente (v${app.getVersion()}).`);
+    }
+  } catch {
+    if (announce) notify("NexusClean", "Nao foi possivel verificar agora.");
+  }
+}
+
+async function checkUpdatesTray() {
+  await triggerUpdateCheck(true);
 }
 
 // --- menu de bandeja CUSTOMIZADO (janela HTML tema hacker, estilo Steam) ---
@@ -294,6 +352,18 @@ function backendJarPath(): string {
   return path.join(process.resourcesPath, "backend.jar");
 }
 
+/**
+ * Caminho do java. Prioriza o JRE EMBUTIDO (para funcionar em PCs sem Java
+ * instalado); cai para o java do sistema como ultimo recurso.
+ */
+function javaBinPath(): string {
+  const bundledDev = path.join(process.cwd(), "build", "jre", "bin", "java.exe");
+  const bundledPkg = path.join(process.resourcesPath, "jre", "bin", "java.exe");
+  if (isDev && existsSync(bundledDev)) return bundledDev;
+  if (!isDev && existsSync(bundledPkg)) return bundledPkg;
+  return "java"; // fallback: java do sistema (se existir)
+}
+
 type TaskKind =
   | "update" | "optimize" | "hacker" | "advopt" | "sfc" | "backup" | "profile"
   | "restorepoint" | "revert" | "trace";
@@ -369,20 +439,40 @@ function stopTask() {
   }
 }
 
+function diag(msg: string) {
+  try {
+    const f = path.join(app.getPath("userData"), "nexus-startup.log");
+    writeFileSync(f, `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
+  } catch {}
+}
+
+function spawnBackend(bin: string, jar: string) {
+  diag(`spawn backend: ${bin} -jar ${jar} (port ${backendPort})`);
+  backend = spawn(bin, ["-jar", jar], {
+    env: { ...process.env, APP_PORT: String(backendPort), APP_TOKEN },
+    windowsHide: true,
+  });
+  backend.stdout?.on("data", (d) => console.log("[java]", d.toString().trim()));
+  backend.stderr?.on("data", (d) => console.error("[java:err]", d.toString().trim()));
+  backend.on("exit", (code) => { diag(`java exit ${code}`); console.log("[java] finalizou:", code); });
+  backend.on("error", (e) => diag(`java ERROR: ${e.message}`));
+}
+
 async function startBackend(): Promise<void> {
   backendPort = await findFreePort(8733);
   const jar = backendJarPath();
 
-  backend = spawn("java", ["-jar", jar], {
-    env: { ...process.env, APP_PORT: String(backendPort), APP_TOKEN },
-    windowsHide: true,
-  });
+  spawnBackend(javaBinPath(), jar);
 
-  backend.stdout?.on("data", (d) => console.log("[java]", d.toString().trim()));
-  backend.stderr?.on("data", (d) => console.error("[java:err]", d.toString().trim()));
-  backend.on("exit", (code) => console.log("[java] finalizou:", code));
-
-  await waitForBackend();
+  try {
+    await waitForBackend();
+  } catch (e) {
+    // fallback: tenta o java do sistema se o embutido nao respondeu
+    diag(`backend nao respondeu com ${javaBinPath()}; tentando 'java' do sistema`);
+    try { backend?.kill(); } catch {}
+    spawnBackend("java", jar);
+    await waitForBackend();
+  }
 }
 
 async function waitForBackend(): Promise<void> {
@@ -527,6 +617,7 @@ function registerIpc() {
   ipcMain.handle("disk:smart", () => callBackend("GET", "/api/disk/smart"));
   // --- auto-updater (modulo 19) ---
   ipcMain.handle("updater:check", () => checkForUpdate());
+  ipcMain.handle("updater:download", () => triggerUpdateCheck(true));
   ipcMain.handle("updater:open", (_e, url: string) => {
     if (typeof url === "string" && /^https:\/\/github\.com\//.test(url)) shell.openExternal(url);
     return { ok: true };
@@ -712,6 +803,9 @@ app.whenReady().then(async () => {
   }
   createWindow();
   createTray();
+
+  // verifica atualizacoes no boot (baixa/instala sozinho se houver)
+  setTimeout(() => triggerUpdateCheck(false), 8000);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

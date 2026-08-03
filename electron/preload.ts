@@ -57,6 +57,7 @@ const api = {
   // --- auto-updater (modulo 19) ---
   updaterCheck: () => ipcRenderer.invoke("updater:check"),
   updaterOpen: (url: string) => ipcRenderer.invoke("updater:open", url),
+  updaterDownload: () => ipcRenderer.invoke("updater:download"),
 
   // --- relatorios (modulo 18) ---
   reportSave: (html: string, format: "pdf" | "html") =>

@@ -17,7 +17,9 @@
     "dist": "npm run build && electron-builder --win --x64",
     "dist:setup": "node scripts/build-installer.mjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.12",
@@ -36,29 +38,83 @@
   "build": {
     "appId": "com.danielsantos.nexusclean",
     "productName": "NexusClean",
-    "directories": { "output": "C:/Users/dhani/NexusClean-App/installer" },
+    "directories": {
+      "output": "C:/Users/dhani/NexusClean-App/installer"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Daizen-Creator",
+        "repo": "Sistema-de-Limpeza"
+      }
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
       "build/backend.jar"
     ],
     "extraResources": [
-      { "from": "build/backend.jar", "to": "backend.jar" },
-      { "from": "build/app.ico", "to": "app.ico" },
-      { "from": "electron/auto-update.ps1", "to": "auto-update.ps1" },
-      { "from": "electron/optimize.ps1", "to": "optimize.ps1" },
-      { "from": "electron/hacker-scan.ps1", "to": "hacker-scan.ps1" },
-      { "from": "electron/advanced-opt.ps1", "to": "advanced-opt.ps1" },
-      { "from": "electron/scheduled-clean.ps1", "to": "scheduled-clean.ps1" },
-      { "from": "electron/sfc.ps1", "to": "sfc.ps1" },
-      { "from": "electron/backup.ps1", "to": "backup.ps1" },
-      { "from": "electron/profile.ps1", "to": "profile.ps1" },
-      { "from": "electron/restore-point.ps1", "to": "restore-point.ps1" },
-      { "from": "electron/revert.ps1", "to": "revert.ps1" },
-      { "from": "electron/trace.ps1", "to": "trace.ps1" }
+      {
+        "from": "build/backend.jar",
+        "to": "backend.jar"
+      },
+      {
+        "from": "build/jre",
+        "to": "jre"
+      },
+      {
+        "from": "build/app.ico",
+        "to": "app.ico"
+      },
+      {
+        "from": "electron/auto-update.ps1",
+        "to": "auto-update.ps1"
+      },
+      {
+        "from": "electron/optimize.ps1",
+        "to": "optimize.ps1"
+      },
+      {
+        "from": "electron/hacker-scan.ps1",
+        "to": "hacker-scan.ps1"
+      },
+      {
+        "from": "electron/advanced-opt.ps1",
+        "to": "advanced-opt.ps1"
+      },
+      {
+        "from": "electron/scheduled-clean.ps1",
+        "to": "scheduled-clean.ps1"
+      },
+      {
+        "from": "electron/sfc.ps1",
+        "to": "sfc.ps1"
+      },
+      {
+        "from": "electron/backup.ps1",
+        "to": "backup.ps1"
+      },
+      {
+        "from": "electron/profile.ps1",
+        "to": "profile.ps1"
+      },
+      {
+        "from": "electron/restore-point.ps1",
+        "to": "restore-point.ps1"
+      },
+      {
+        "from": "electron/revert.ps1",
+        "to": "revert.ps1"
+      },
+      {
+        "from": "electron/trace.ps1",
+        "to": "trace.ps1"
+      }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/app.ico",
       "requestedExecutionLevel": "requireAdministrator",
       "signAndEditExecutable": false
