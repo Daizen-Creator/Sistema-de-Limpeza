@@ -1,6 +1,6 @@
 {
   "name": "limpeza-drivers",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sistema seguro de limpeza e atualizacao de drivers via Windows Update (drivers assinados/WHQL).",
   "author": "Daniel Santos Ciriaco",
   "license": "MIT",
