@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { HardwareInfo } from "../../electron/types";
-import { GAMES, gpuScore, estimate } from "../lib/games";
+import { GAMES, gpuScore, estimate, PRESETS, RESOLUTIONS, type Preset, type Resolution } from "../lib/games";
 import { formatBytes } from "../lib/format";
 
 export default function Games() {
   const [hw, setHw] = useState<HardwareInfo | null>(null);
   const [phase, setPhase] = useState<"detecting" | "done">("detecting");
+  const [preset, setPreset] = useState<Preset>("medium");
+  const [resolution, setResolution] = useState<Resolution>("1080p");
 
   // PASSO 1 — identificar o hardware real da maquina
   useEffect(() => {
@@ -37,10 +39,10 @@ export default function Games() {
   const results = useMemo(
     () =>
       hw
-        ? GAMES.map((g) => ({ game: g, res: estimate(g, gpu.score, ramGB) }))
+        ? GAMES.map((g) => ({ game: g, res: estimate(g, gpu.score, ramGB, preset, resolution) }))
             .sort((a, b) => b.res.fps - a.res.fps)
         : [],
-    [hw, gpu.score, ramGB]
+    [hw, gpu.score, ramGB, preset, resolution]
   );
   const runnable = results.filter((r) => r.res.verdict !== "no").length;
 
@@ -68,8 +70,8 @@ export default function Games() {
       <div className="page-head">
         <h2>Meu PC roda? — Jogos</h2>
         <p>
-          Hardware identificado abaixo. Os FPS são <strong>estimativas</strong> em 1080p e variam
-          com as configurações do jogo.
+          Hardware identificado abaixo. Os FPS são <strong>estimativas</strong> e mudam conforme a
+          <strong> qualidade</strong> e a <strong>resolução</strong> escolhidas abaixo.
         </p>
       </div>
 
@@ -108,6 +110,38 @@ export default function Games() {
         </div>
       </div>
 
+      {/* SELETORES DE GRAFICOS: preset + resolucao */}
+      <div className="gfx-bar">
+        <div className="gfx-group">
+          <span className="gfx-label">Qualidade</span>
+          <div className="gfx-opts">
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                className={`gfx-btn ${preset === p.id ? "on" : ""}`}
+                onClick={() => setPreset(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="gfx-group">
+          <span className="gfx-label">Resolução</span>
+          <div className="gfx-opts">
+            {RESOLUTIONS.map((r) => (
+              <button
+                key={r.id}
+                className={`gfx-btn ${resolution === r.id ? "on" : ""}`}
+                onClick={() => setResolution(r.id)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* PASSO 2: comparacao com jogos */}
       <div className="grid cols-3" style={{ marginTop: 16 }}>
         {results.map(({ game, res }) => (
@@ -130,7 +164,7 @@ export default function Games() {
               <div className="game-fps">
                 <span className="fps-big">{res.fps}</span>
                 <span className="fps-unit">FPS</span>
-                <span className="fps-res">~1080p</span>
+                <span className="fps-res">~{resolution}</span>
               </div>
               <div className="fps-bar">
                 <div

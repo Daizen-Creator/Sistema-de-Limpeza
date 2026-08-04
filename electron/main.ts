@@ -26,6 +26,12 @@ import { splashHtml } from "./splash";
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
 const APP_TOKEN = randomBytes(24).toString("hex");
 
+// Corrige "tela preta" intermitente: em muitos PCs/drivers e em maquinas
+// virtuais o compositor de GPU do Chromium falha e deixa a janela preta.
+// Desligar a aceleracao de hardware resolve (a UI e leve, nao precisa de GPU).
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch("disable-gpu-compositing");
+
 /** Compara duas versoes tipo "1.2.0". Retorna true se 'a' for mais nova que 'b'. */
 function isNewer(a: string, b: string): boolean {
   const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
@@ -779,6 +785,26 @@ function createWindow() {
   mainWindow.once("ready-to-show", () => {
     closeSplash();
     mainWindow?.show();
+  });
+
+  // Recuperacao contra "tela preta": se o renderer travar/morrer, recarrega.
+  mainWindow.webContents.on("render-process-gone", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.reload(); } catch {}
+    }
+  });
+  mainWindow.webContents.on("unresponsive", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.webContents.reloadIgnoringCache(); } catch {}
+    }
+  });
+  // Escotilha manual: F5 (ou Ctrl+R) recarrega o painel caso ele fique preto.
+  mainWindow.webContents.on("before-input-event", (_e, input) => {
+    if (input.type !== "keyDown") return;
+    const key = (input.key || "").toLowerCase();
+    if (key === "f5" || (input.control && key === "r")) {
+      try { mainWindow?.webContents.reloadIgnoringCache(); } catch {}
+    }
   });
 
   mainWindow.on("maximize", () => mainWindow?.webContents.send("win:maximized", true));

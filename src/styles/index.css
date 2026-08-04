@@ -279,6 +279,28 @@ body {
 .detected-sum b { color: var(--accent); font-size: 15px; }
 @media (max-width: 900px) { .detected-grid { grid-template-columns: repeat(2, 1fr); } }
 
+/* --- barra de opcoes graficas (qualidade + resolucao) --- */
+.gfx-bar {
+  display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
+  margin-top: 16px; padding: 14px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow);
+}
+.gfx-group { display: flex; align-items: center; gap: 10px; }
+.gfx-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); }
+.gfx-opts { display: flex; gap: 6px; }
+.gfx-btn {
+  padding: 6px 14px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--text-dim);
+  border: 1px solid var(--border); background: rgba(255,255,255,.02);
+  transition: color .12s, border-color .12s, background .12s, box-shadow .12s;
+}
+.gfx-btn:hover { color: var(--text); border-color: var(--accent); }
+.gfx-btn.on {
+  color: #04160b; background: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(34,255,119,.45);
+}
+@media (max-width: 640px) { .gfx-bar { flex-direction: column; align-items: flex-start; gap: 12px; } }
+
 .game-card {
   position: relative; overflow: hidden; border-radius: var(--radius);
   border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow);

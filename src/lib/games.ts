@@ -89,6 +89,8 @@ export const GAMES: Game[] = [
 ];
 
 export type Verdict = "smooth" | "ok" | "no";
+export type Preset = "low" | "medium" | "high" | "ultra";
+export type Resolution = "480p" | "720p" | "1080p" | "1440p";
 
 export interface GameResult {
   verdict: Verdict;
@@ -96,23 +98,43 @@ export interface GameResult {
   label: string;
 }
 
-export function estimate(game: Game, userScore: number, ramGB: number): GameResult {
-  let fps = Math.round(game.fpsAt100 * (userScore / 100));
+// Multiplicadores de FPS por resolucao (base = 1080p) e por preset grafico (base = medio).
+const RES_MULT: Record<Resolution, number> = { "480p": 2.1, "720p": 1.5, "1080p": 1.0, "1440p": 0.62 };
+const PRESET_MULT: Record<Preset, number> = { low: 1.45, medium: 1.0, high: 0.72, ultra: 0.52 };
+
+export const RESOLUTIONS: { id: Resolution; label: string }[] = [
+  { id: "480p", label: "480p" },
+  { id: "720p", label: "720p" },
+  { id: "1080p", label: "1080p" },
+  { id: "1440p", label: "1440p" },
+];
+export const PRESETS: { id: Preset; label: string }[] = [
+  { id: "low", label: "Baixo" },
+  { id: "medium", label: "Medio" },
+  { id: "high", label: "Alto" },
+  { id: "ultra", label: "Ultra" },
+];
+
+export function estimate(
+  game: Game, userScore: number, ramGB: number,
+  preset: Preset = "medium", resolution: Resolution = "1080p"
+): GameResult {
+  let fps = game.fpsAt100 * (userScore / 100) * RES_MULT[resolution] * PRESET_MULT[preset];
+  fps = Math.round(fps);
   if (game.cap) fps = Math.min(fps, game.cap);
-  fps = Math.max(0, Math.min(fps, 300));
+  fps = Math.max(0, Math.min(fps, 360));
 
-  const ramOk = ramGB >= game.ramGB;
-  const ramOkMin = ramGB >= game.ramGB * 0.7;
-
+  const ramOk = ramGB >= game.ramGB * 0.7;
   let verdict: Verdict;
   let label: string;
-  if (userScore >= game.recScore && ramOk) {
+  if (!ramOk) {
+    verdict = "no"; label = "RAM insuficiente";
+  } else if (fps >= 60) {
     verdict = "smooth"; label = "Roda liso";
-  } else if (userScore >= game.minScore && ramOkMin) {
+  } else if (fps >= 30) {
     verdict = "ok"; label = "Roda";
   } else {
     verdict = "no"; label = "Nao recomendado";
-    fps = Math.max(0, Math.round(fps * 0.6));
   }
   return { verdict, fps, label };
 }
