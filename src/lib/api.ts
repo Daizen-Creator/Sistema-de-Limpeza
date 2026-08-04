@@ -74,6 +74,7 @@ const mock: ApiShape = {
         cpuName: "AMD Ryzen 5 4600G (demo)",
         cpuCores: 6, cpuThreads: 12, cpuClockMhz: 3700, cpuLoad: 23, cpuTempC: 52,
         gpuName: "NVIDIA GeForce GTX 1050 Ti", gpuDriver: "32.0.15.8253", gpuVramBytes: 4 * 1024 ** 3,
+        motherboard: "MANCER A320M-DA (demo)",
         ramTotalBytes: 8 * 1024 ** 3, ramFreeBytes: 2.7 * 1024 ** 3,
         disks: [
           { name: "KINGSTON SA400S37120G", media: "SSD", sizeBytes: 120 * 1024 ** 3 },

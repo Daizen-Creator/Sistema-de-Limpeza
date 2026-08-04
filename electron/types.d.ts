@@ -141,6 +141,7 @@ export interface HardwareInfo {
   cpuName: string; cpuCores: number; cpuThreads: number; cpuClockMhz: number;
   cpuLoad: number; cpuTempC: number | null;
   gpuName: string; gpuDriver: string; gpuVramBytes: number;
+  motherboard: string;
   ramTotalBytes: number; ramFreeBytes: number;
   disks: DiskInfo[]; volumes: VolInfo[];
 }

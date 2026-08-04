@@ -14,10 +14,24 @@ public class ProbeService {
         String ps =
             "$cpu = Get-CimInstance Win32_Processor | Select-Object -First 1;" +
             "$os  = Get-CimInstance Win32_OperatingSystem;" +
-            "$gpu = Get-CimInstance Win32_VideoController | " +
-            "  Where-Object { $_.PNPDeviceID -like 'PCI*' -and $_.Name -notmatch 'Idd|Basic|Remote|Virtual|Meta|Parsec|Mirror' } | " +
-            "  Sort-Object AdapterRAM -Descending | Select-Object -First 1;" +
-            "if (-not $gpu) { $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1 }" +
+            "$cs  = Get-CimInstance Win32_ComputerSystem;" +
+            "$bb  = Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue | Select-Object -First 1;" +
+            // --- GPU: le a VRAM REAL do registro (64 bits); pega a de maior VRAM ---
+            "$gpuName=''; $gpuVram=0; $gpuDriver='';" +
+            "$cls='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}';" +
+            "Get-ChildItem $cls -ErrorAction SilentlyContinue | ForEach-Object {" +
+            "  $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue;" +
+            "  if ($p -and $p.DriverDesc -and $p.DriverDesc -notmatch 'Idd|Basic|Remote|Virtual|Meta|Parsec|Mirror|DameWare') {" +
+            "    $qw = 0; $v = $p.'HardwareInformation.qwMemorySize';" +
+            "    if ($v) { if ($v -is [byte[]]) { if ($v.Length -ge 8) { $qw = [System.BitConverter]::ToInt64($v,0) } } else { try { $qw = [int64]$v } catch {} } }" +
+            "    if ($qw -le 0) { $m = $p.'HardwareInformation.MemorySize'; if ($m) { if ($m -is [byte[]]) { if ($m.Length -ge 4) { $qw = [int64][System.BitConverter]::ToUInt32($m,0) } } else { try { $qw = [int64]$m } catch {} } } }" +
+            "    if ($gpuName -eq '') { $gpuName = $p.DriverDesc; $gpuDriver = [string]$p.DriverVersion; $gpuVram = $qw }" +
+            "    if ($qw -gt $gpuVram) { $gpuVram = $qw; $gpuName = $p.DriverDesc; $gpuDriver = [string]$p.DriverVersion }" +
+            "  } };" +
+            "if ($gpuName -eq '') {" +
+            "  $g = Get-CimInstance Win32_VideoController | Where-Object { $_.PNPDeviceID -like 'PCI*' } | Sort-Object AdapterRAM -Descending | Select-Object -First 1;" +
+            "  if (-not $g) { $g = Get-CimInstance Win32_VideoController | Select-Object -First 1 };" +
+            "  if ($g) { $gpuName=[string]$g.Name; $gpuDriver=[string]$g.DriverVersion; $gpuVram=[int64]$g.AdapterRAM } };" +
             "$temp = $null;" +
             "try { $t = Get-CimInstance -Namespace 'root/wmi' -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1;" +
             "      if ($t) { $temp = [math]::Round(($t.CurrentTemperature/10)-273.15,0) } } catch {}" +
@@ -32,6 +46,9 @@ public class ProbeService {
             "}" +
             "$vols = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | ForEach-Object {" +
             "  [pscustomobject]@{ drive=$_.DeviceID; totalBytes=[int64]$_.Size; freeBytes=[int64]$_.FreeSpace } };" +
+            "$mb = if ($bb) { ((([string]$bb.Manufacturer) + ' ' + ([string]$bb.Product)).Trim()) } else { '' };" +
+            "$ramSticks = (Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Measure-Object -Property Capacity -Sum).Sum;" +
+            "$ramTotal = if ($ramSticks) { [int64]$ramSticks } elseif ($cs.TotalPhysicalMemory) { [int64]$cs.TotalPhysicalMemory } else { [int64]($os.TotalVisibleMemorySize*1024) };" +
             "$obj = [pscustomobject]@{" +
             "  cpuName = ($cpu.Name).Trim();" +
             "  cpuCores = [int]$cpu.NumberOfCores;" +
@@ -39,10 +56,11 @@ public class ProbeService {
             "  cpuClockMhz = [int]$cpu.MaxClockSpeed;" +
             "  cpuLoad = [int]$cpu.LoadPercentage;" +
             "  cpuTempC = $temp;" +
-            "  gpuName = $gpu.Name;" +
-            "  gpuDriver = $gpu.DriverVersion;" +
-            "  gpuVramBytes = [int64]$gpu.AdapterRAM;" +
-            "  ramTotalBytes = [int64]($os.TotalVisibleMemorySize*1024);" +
+            "  gpuName = $gpuName;" +
+            "  gpuDriver = $gpuDriver;" +
+            "  gpuVramBytes = [int64]$gpuVram;" +
+            "  motherboard = $mb;" +
+            "  ramTotalBytes = $ramTotal;" +
             "  ramFreeBytes = [int64]($os.FreePhysicalMemory*1024);" +
             "  disks = @($disks);" +
             "  volumes = @($vols);" +

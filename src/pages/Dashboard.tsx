@@ -82,6 +82,15 @@ export default function Dashboard({
         </div>
 
         <div className="card hw">
+          <div className="hw-ico">🧩</div>
+          <div className="hw-body">
+            <h3>PLACA-MAE</h3>
+            <div className="hw-name">{hw?.motherboard || "…"}</div>
+            <div className="hw-meta">Placa-mae do sistema</div>
+          </div>
+        </div>
+
+        <div className="card hw">
           <div className="hw-ico">🌐</div>
           <div className="hw-body">
             <h3>REDE</h3>

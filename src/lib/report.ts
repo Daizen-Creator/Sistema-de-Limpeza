@@ -36,6 +36,7 @@ export function buildReportHtml(d: ReportData): string {
   const hwRows = hw ? rows([
     ["Processador", `${esc(hw.cpuName)} — ${hw.cpuCores} nucleos / ${hw.cpuThreads} threads @ ${(hw.cpuClockMhz / 1000).toFixed(1)} GHz`],
     ["Placa de video", `${esc(hw.gpuName)} — driver ${esc(hw.gpuDriver)}${hw.gpuVramBytes > 0 ? " · " + formatBytes(hw.gpuVramBytes) + " VRAM" : ""}`],
+    ["Placa-mae", esc(hw.motherboard || "n/d")],
     ["Memoria RAM", `${formatBytes(hw.ramTotalBytes)} (${formatBytes(hw.ramFreeBytes)} livres)`],
   ]) : "";
 
