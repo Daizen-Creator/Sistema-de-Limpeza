@@ -49,6 +49,7 @@ run("npx", [
   `--electron-version=${electronVersion}`,
   ...(existsSync(join(root, "build/app.ico")) ? ["--icon=./build/app.ico"] : []),
   "--extra-resource=./build/backend.jar",
+  "--extra-resource=./electron/app-update.yml",
   ...(existsSync(join(root, "build/jre")) ? ["--extra-resource=./build/jre"] : []),
   ...(existsSync(join(root, "build/app.ico")) ? ["--extra-resource=./build/app.ico"] : []),
   "--extra-resource=./electron/auto-update.ps1",

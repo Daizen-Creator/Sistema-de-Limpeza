@@ -1,6 +1,6 @@
 {
   "name": "limpeza-drivers",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sistema seguro de limpeza e atualizacao de drivers via Windows Update (drivers assinados/WHQL).",
   "author": "Daniel Santos Ciriaco",
   "license": "MIT",
@@ -58,6 +58,10 @@
       {
         "from": "build/backend.jar",
         "to": "backend.jar"
+      },
+      {
+        "from": "electron/app-update.yml",
+        "to": "app-update.yml"
       },
       {
         "from": "build/jre",

@@ -221,6 +221,7 @@ let updaterReady = false;
 function setupAutoUpdater() {
   if (isDev || updaterReady) return;
   updaterReady = true;
+  autoUpdater.logger = console; // loga tudo no stdout para diagnostico
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on("update-available", (info: any) => {
@@ -230,11 +231,15 @@ function setupAutoUpdater() {
   autoUpdater.on("download-progress", (p: any) => {
     setUpdateProgress(p?.percent ?? -1, `Baixando atualizacao... ${Math.round(p?.percent ?? 0)}%`);
   });
+  autoUpdater.on("checking-for-update", () => diag("updater: checking..."));
+  autoUpdater.on("update-not-available", (i: any) => diag(`updater: sem update (latest ${i?.version})`));
   autoUpdater.on("update-downloaded", () => {
+    diag("updater: baixado, instalando");
     setUpdateProgress(100, "Instalando... o app vai reiniciar");
-    setTimeout(() => { isQuitting = true; try { autoUpdater.quitAndInstall(true, true); } catch {} }, 1400);
+    setTimeout(() => { isQuitting = true; try { autoUpdater.quitAndInstall(true, true); } catch (e: any) { diag("quitAndInstall erro: " + e?.message); } }, 1400);
   });
-  autoUpdater.on("error", () => {
+  autoUpdater.on("error", (e: any) => {
+    diag("updater ERROR: " + (e?.message ?? e));
     if (updateWin) { setUpdateProgress(-1, "Falha ao atualizar"); setTimeout(() => updateWin?.close(), 2500); }
   });
 }
@@ -245,14 +250,17 @@ async function triggerUpdateCheck(announce: boolean) {
   setupAutoUpdater();
   if (announce) notify("NexusClean", "Verificando atualizacoes...");
   try {
+    diag(`updater: checkForUpdates (versao atual ${app.getVersion()})`);
     const r: any = await autoUpdater.checkForUpdates();
     const latest = r?.updateInfo?.version;
+    diag(`updater: resposta latest=${latest}`);
     if (latest && isNewer(latest, app.getVersion())) {
       // update-available cuidara do download + tela
     } else if (announce) {
       notify("NexusClean", `Voce esta na versao mais recente (v${app.getVersion()}).`);
     }
-  } catch {
+  } catch (e: any) {
+    diag("updater: checkForUpdates FALHOU: " + (e?.message ?? e));
     if (announce) notify("NexusClean", "Nao foi possivel verificar agora.");
   }
 }
@@ -441,8 +449,10 @@ function stopTask() {
 
 function diag(msg: string) {
   try {
-    const f = path.join(app.getPath("userData"), "nexus-startup.log");
-    writeFileSync(f, `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
+    console.log("[diag]", msg);
+    const dir = app.getPath("userData");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "nexus-startup.log"), `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
   } catch {}
 }
 
