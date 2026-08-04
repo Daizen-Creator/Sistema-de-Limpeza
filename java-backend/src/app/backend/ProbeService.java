@@ -16,17 +16,21 @@ public class ProbeService {
             "$os  = Get-CimInstance Win32_OperatingSystem;" +
             "$cs  = Get-CimInstance Win32_ComputerSystem;" +
             "$bb  = Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue | Select-Object -First 1;" +
-            // --- GPU: le a VRAM REAL do registro (64 bits); pega a de maior VRAM ---
-            "$gpuName=''; $gpuVram=0; $gpuDriver='';" +
+            // --- GPU: le a VRAM REAL do registro (64 bits); prefere a DEDICADA de maior VRAM ---
+            "$gpuName=''; $gpuVram=0; $gpuDriver=''; $gpuDed=$false;" +
             "$cls='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}';" +
             "Get-ChildItem $cls -ErrorAction SilentlyContinue | ForEach-Object {" +
             "  $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue;" +
-            "  if ($p -and $p.DriverDesc -and $p.DriverDesc -notmatch 'Idd|Basic|Remote|Virtual|Meta|Parsec|Mirror|DameWare') {" +
+            "  if ($p -and $p.DriverDesc -and $p.DriverDesc -notmatch 'Idd|Basic|Remote|Virtual|Meta|Parsec|Mirror|DameWare|Citrix') {" +
             "    $qw = 0; $v = $p.'HardwareInformation.qwMemorySize';" +
             "    if ($v) { if ($v -is [byte[]]) { if ($v.Length -ge 8) { $qw = [System.BitConverter]::ToInt64($v,0) } } else { try { $qw = [int64]$v } catch {} } }" +
             "    if ($qw -le 0) { $m = $p.'HardwareInformation.MemorySize'; if ($m) { if ($m -is [byte[]]) { if ($m.Length -ge 4) { $qw = [int64][System.BitConverter]::ToUInt32($m,0) } } else { try { $qw = [int64]$m } catch {} } } }" +
-            "    if ($gpuName -eq '') { $gpuName = $p.DriverDesc; $gpuDriver = [string]$p.DriverVersion; $gpuVram = $qw }" +
-            "    if ($qw -gt $gpuVram) { $gpuVram = $qw; $gpuName = $p.DriverDesc; $gpuDriver = [string]$p.DriverVersion }" +
+            "    $ded = ($p.DriverDesc -match 'GeForce|RTX|GTX|Radeon RX|Radeon Pro|Arc|Quadro|Tesla|Titan');" +
+            "    $take = $false;" +
+            "    if ($gpuName -eq '') { $take = $true }" +
+            "    elseif ($ded -and -not $gpuDed) { $take = $true }" +
+            "    elseif (($ded -eq $gpuDed) -and ($qw -gt $gpuVram)) { $take = $true };" +
+            "    if ($take) { $gpuName = $p.DriverDesc; $gpuDriver = [string]$p.DriverVersion; $gpuVram = $qw; $gpuDed = $ded }" +
             "  } };" +
             "if ($gpuName -eq '') {" +
             "  $g = Get-CimInstance Win32_VideoController | Where-Object { $_.PNPDeviceID -like 'PCI*' } | Sort-Object AdapterRAM -Descending | Select-Object -First 1;" +
